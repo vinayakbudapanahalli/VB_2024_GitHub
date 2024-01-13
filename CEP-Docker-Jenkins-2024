@@ -1,0 +1,259 @@
+Description
+Demonstrate the continuous integration and delivery by building a Docker Jenkins Pipeline.
+Problem Statement Scenario:
+You are a DevOps consultant in AchiStar Technologies. The company decided to implement DevOps to develop and deliver their products. Since it is an Agile organization, it follows Scrum methodology to develop the projects incrementally. You are working with multiple DevOps Engineers to build a Docker Jenkins Pipeline. During the sprint planning, you agreed to take the lead on this project and plan on the requirements, system configurations, and track the efficiency. The tasks you are responsible for:
+Solution 
+As part of the Course End  Project -2 
+1)	We have a Code repository with its commit.
+Using the code located in - https://github.com/Sonal0409/DevOpsCodeDemo.git
+
+2)	CI Tool used is Maven server 
+a.	We use Jenkins pipeline to get the code 
+
+
+b.	Get the code Code github  maven(maven Command to compile, test, and package the code) Artifacts/build 
+c.	Once the Build is available, we will have to deploy the code on a container 
+Continuous Integration 
+1)	Launch Jenkins and Setup Maven tool configuration as we must perform the CI.
+ 
+2)	Create the Jenkins Pipeline 
+a.	Create a Pipeline a job in which we write code to clone the repository and package the code.
+ 
+
+
+
+
+
+
+-	The below Trigger was chosen because every time we there is a new commit, we should be able to deploy the new code.
+-	Jenkins will be running this job if there is a new code in the Git.
+-	Jenkins Pulls the Git every minute. 
+-	
+-	
+
+ 
+
+ 
+
+
+
+In the pipeline enter the script 
+pipeline{
+    tools{ maven 'VB_MAVEN' }
+    
+    agent any
+    
+    stages{
+        stage('Clone the repo')
+		{
+            steps{ git 'https://github.com/Sonal0409/DevOpsCodeDemo.git' }
+                 }
+        
+        stage('build the code'){;
+           steps{
+                sh 'mvn package'
+            }
+        }
+}
+}
+Save the above pipeline and build it, we will find the package in the Jenkins workspace Target Folder
+
+ 
+
+ 
+
+We need to copy the path where the Application Package is present 
+Building war: /var/lib/jenkins/workspace/CICD_P10/target/addressbook.war
+
+ 
+
+
+Step 3 )	
+Continuous Delivery 
+1)	Use the linux command to copy the addressbook.war into the same directory that of Docker file 
+2)	We need to take the above file and build the DockerFile that creates a custom image.
+a.	Below is the Docker File 
+DockerFile
+FROM tomcat:9 
+ADD addressbook.war/usr/share/tomcat/webapps.
+EXPOSE 8080
+CMD [“cataline.sh”, “run”]     //Cataline.sh is a home directory where a script is available in tomcat. 
+**** 
+Build file must be placed where the Docker file is placed. 
+By Default Jenkins user can’t run Docker Commands.
+Permission needs to be given to the user to run the Docker Commands 
+Execute the below command to allow the user to provide the commands 
+Chmod 777 /var/run/docker.sock
+
+
+pipeline{
+    tools{ maven 'VB_MAVEN' }
+    
+    agent any
+    
+    stages{
+        stage('Clone the repo')
+		{
+            steps{ git 'https://github.com/Sonal0409/DevOpsCodeDemo.git' }
+                 }
+        
+        stage('build the code'){
+           steps{
+                sh 'mvn package'
+            }
+                              }
+
+	stage ('Copy the Build to workspace directory') {
+
+		 steps {
+
+	//Copy the file from target folder to workspace folder where Docker File exists
+	// In the below command end, "." means in the current directory
+		sh 'cp /var/lib/jenkins/workspace/CICD_P10/target/addressbook.war .'
+			}
+							}		 
+		
+	  
+	stage ('Build the Image') {
+		steps {
+				//Image name will not have the upper case letters
+			sh 'docker build -t projectimage'
+}
+}
+*****
+
+ 
+Let’s Build this 
+ 
+ 
+ 
+ 
+Now add the stage to run the image and deploy the application. 
+
+stage ('Deploy on the container '){
+			steps {
+			sh 'docker run -d -p projectimage'
+			}
+	}
+
+ 
+ 
+
+
+Initial Error 
+ 
+
+Later fixing the error in the command 
+steps {	sh 'docker run -d -P projectimage' }
+ 
+Confirming the same from OS level 
+Command to confirm the same >> from the command line  docker ps --latest
+ 
+The Post mentioned in the above screen is 49154 – Using the same port we are launching the O/P
+ 
+
+
+
+Create Image in docker. 
+
+	 stage('push image to DockerHub'){
+            steps{
+ 
+                sh 'docker login -u vinayakb2010 -p Vinda*100!'
+                sh 'docker tag projectimage vinayakb2010/projectimage'
+                sh 'docker push vinayakb2010/projectimage'
+                sh 'docker rmi vinayakb2010/projectimage'
+            }
+        }
+        
+        stage('Create containers'){
+            steps{
+                sh 'docker run -d -P vinayakb2010/myaddressbook'
+            }
+        }
+    }
+
+}
+ 
+Creating a Pipeline to push the image
+ 
+ 
+Building it now 
+ 
+
+ 
+ 
+
+ 
+
+
+Final Code That was used to build the above Pipelines and Images 
+pipeline{
+    tools{ maven 'VB_MAVEN' }
+    
+    agent any
+    
+    stages{
+        stage('Clone the repo')
+		{
+            steps{ git 'https://github.com/Sonal0409/DevOpsCodeDemo.git' }
+                 }
+        
+        stage('build the code'){
+           steps{
+                sh 'mvn package'
+            }
+                              }
+
+	stage ('Copy the Build to workspace directory') {
+
+		 steps {
+
+	//Copy the file from target folder to workspace folder where Docker File exists
+	//In the below command end, "." means in the current directory
+	
+		sh 'cp /var/lib/jenkins/workspace/CICD_P10/target/addressbook.war .'
+			}
+							}		 
+		
+	  
+	stage ('Build the Image') {
+		steps {
+				//Image name will not have the upper case letters
+			sh 'docker build -t projectimage .'
+			}
+				}
+
+	stage ('Deploy on the container'){
+	
+		steps {	
+			sh 'docker run -d -P projectimage'
+			}
+	
+	}
+
+	 stage('push image to DockerHub'){
+            steps{
+ 
+                sh 'docker login -u vinayakb2010 -p Vinda*100!'
+                sh 'docker tag projectimage vinayakb2010/projectimage'
+                sh 'docker push vinayakb2010/projectimage'
+                sh 'docker rmi vinayakb2010/projectimage'
+            }
+        }
+        
+        stage('Create containers'){
+            steps{
+   		
+                sh 'docker run -d -P vinayakb2010/projectimage'
+            }
+        }
+    }
+
+}
+
+
+
+
+
+
